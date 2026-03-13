@@ -126,7 +126,7 @@ def test_find_pets_by_single_status(petstore_auth_headers, petstore_base_url, st
         assert "name" in data[0]
 
         print(f"✅ Тест пройден! Нашли питомца: {data[0]['name']}")
-        print(f"✅ Тест пройден! Количество питомцев во всех статусах: {len(data)}")
+        print(f"✅ Тест пройден! Количество питомцев в статусе {status}: {len(data)}")
 
 
 

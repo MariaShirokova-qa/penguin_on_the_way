@@ -54,20 +54,40 @@ def test_find_pets_by_status_sold(petstore_auth_headers, petstore_base_url):
 
     params = {"status": "sold"}
 
-    response = requests.get(f"{petstore_base_url}/pet/findByStatus", params=params, headers=petstore_auth_headers)
+    response = requests.get(
+        f"{petstore_base_url}/pet/findByStatus",
+        params=params,
+        headers=petstore_auth_headers
+    )
 
+    # Базовые проверки
     assert response.status_code == 200
-
     assert "application/json" in response.headers.get("content-type", "")
 
     data = response.json()
     assert isinstance(data, list)
 
-    if len(data) > 0:
-        assert "name" in data[0]
+    assert len(data) >= 0
 
-        print(f"✅ Тест пройден! Нашли питомца: {data[0]['name']}")
-        print(f"✅ Тест пройден! Количество проданных питомцев: {len(data)}")
+    #Если питомцы есть — проверяем структуру
+    if len(data) > 0:
+        for pet in data:
+            # Обязательные поля (по спецификации)
+            assert "id" in pet, f"У питомца нет id: {pet}"
+            assert "status" in pet, f"У питомца нет статуса: {pet}"
+
+            #Главная проверка: статус должен совпадать с запросом
+            assert pet["status"] == "sold", f"Ожидали 'sold', получили '{pet['status']}'"
+
+            # Опциональные поля — проверяем тип, если они есть
+            if "name" in pet:
+                assert isinstance(pet["name"], str), f"name: ожидали str, получили {type(pet['name']).__name__}"
+            if "id" in pet:
+                assert isinstance(pet["id"], int), f"id: ожидали int, получили {type(pet['id']).__name__}"
+            if "photoUrls" in pet:
+                assert isinstance(pet["photoUrls"], list), f"photoUrls: ожидали list, получили {type(pet['photoUrls']).__name__}"
+
+    print(f"✅ Проверено {len(data)} питомцев со статусом 'sold'")
 
 
 
@@ -130,19 +150,3 @@ def test_find_pets_by_single_status(petstore_auth_headers, petstore_base_url, st
 
 
 
-def test_create_pet_with_auth(petstore_auth_headers, petstore_base_url):
-    """Создание питомца с авторизацией"""
-
-    # Данные питомца
-    new_pet = {
-        "id": 12345,
-        "name": "MyDog",
-        "photoUrls": ["https://example.com/photo.jpg"],
-        "status": "available"
-    }
-
-    # Отправляем POST с заголовками
-    response = requests.post(f"{petstore_base_url}/pet", json=new_pet, headers=petstore_auth_headers)
-
-    assert response.status_code in [200, 201]
-    print("✅ Питомец создан!")

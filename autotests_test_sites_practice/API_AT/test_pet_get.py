@@ -1,5 +1,8 @@
 import requests
 import pytest
+import jsonschema
+from schemas import schema_get_find_by_status
+from schemas import find_pets_by_status_response_complex_schema
 
 
 
@@ -50,7 +53,8 @@ def test_find_pets_by_status(petstore_auth_headers, petstore_base_url):
 
 
 def test_find_pets_by_status_sold(petstore_auth_headers, petstore_base_url):
-    """Получение списка питомцев в статусе "sold" """
+    """Получение списка питомцев в статусе "sold"
+     проверка валидации схемы вручную"""
 
     params = {"status": "sold"}
 
@@ -89,11 +93,33 @@ def test_find_pets_by_status_sold(petstore_auth_headers, petstore_base_url):
                 assert isinstance(pet["photoUrls"], list), f"photoUrls: ожидали list, получили {type(pet['photoUrls']).__name__}"
 
             # БИЗНЕС-ЛОГИКА (Значения соответствуют запросу)
-            # Проверяем только после того как убедились, что поле есть и оно правильного типа.
+            # Проверяем только после того как убедились, что поле есть и оно правильного типа
             assert pet["status"] == "sold", f"Ожидали sold, получили '{pet['status']}'"
 
 
     print(f"✅ Проверено {len(data)} питомцев со статусом 'sold'")
+
+
+
+def test_find_pets_by_status_sold_auto_schema(petstore_auth_headers, petstore_base_url, schema_get_find_by_status, endpoint_get_find_by_status):
+    """Получение списка питомцев в статусе "sold"
+     проверка валидации схемы автоматически"""
+
+    params = {"status": "sold"}
+
+    response = requests.get(
+        f"{petstore_base_url}{endpoint_get_find_by_status}",
+        params = params,
+        headers = petstore_auth_headers
+    )
+
+    # Базовые проверки
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # Валидация схемы
+    jsonschema.validate(instance = data[0], schema = schema_get_find_by_status)
 
 
 

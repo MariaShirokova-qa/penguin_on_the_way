@@ -72,20 +72,26 @@ def test_find_pets_by_status_sold(petstore_auth_headers, petstore_base_url):
     #Если питомцы есть — проверяем структуру
     if len(data) > 0:
         for pet in data:
-            # Обязательные поля (по спецификации)
+            # Наличие обязательных полей
             assert "id" in pet, f"У питомца нет id: {pet}"
             assert "status" in pet, f"У питомца нет статуса: {pet}"
 
-            #Главная проверка: статус должен совпадать с запросом
-            assert pet["status"] == "sold", f"Ожидали 'sold', получили '{pet['status']}'"
+            # Типы данных обязательных полей
+            assert isinstance(pet["id"], int), f"id: ожидали int, получили {type(pet['id']).__name__}"
 
-            # Опциональные поля — проверяем тип, если они есть
+            assert isinstance(pet["status"], str), f"status: ожидали str, получили {type(pet['status']).__name__}"
+
+            # Типы данных опциональных полей
             if "name" in pet:
                 assert isinstance(pet["name"], str), f"name: ожидали str, получили {type(pet['name']).__name__}"
-            if "id" in pet:
-                assert isinstance(pet["id"], int), f"id: ожидали int, получили {type(pet['id']).__name__}"
+
             if "photoUrls" in pet:
                 assert isinstance(pet["photoUrls"], list), f"photoUrls: ожидали list, получили {type(pet['photoUrls']).__name__}"
+
+            # БИЗНЕС-ЛОГИКА (Значения соответствуют запросу)
+            # Проверяем только после того как убедились, что поле есть и оно правильного типа.
+            assert pet["status"] == "sold", f"Ожидали sold, получили '{pet['status']}'"
+
 
     print(f"✅ Проверено {len(data)} питомцев со статусом 'sold'")
 

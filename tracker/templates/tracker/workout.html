@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Активная тренировка</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Подключаем шрифт Barlow из Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Подключаем SortableJS для Drag-and-Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <style>
+        :root {
+            --gunmetal: #2a3439;
+            --khaki: #6b705c;
+            --brown: #7f4f24;
+            --sand: #e2e1d8;
+        }
+
+        /* Применяем новый шрифт */
+        body {
+            background-color: var(--sand) !important;
+            font-family: 'Barlow', sans-serif;
+        }
+
+        h1, h2, h3, h4, h5, h6, .fw-bold, strong {
+            font-weight: 700 !important;
+        }
+
+        .header-gunmetal { background-color: var(--gunmetal); }
+        .header-gunmetal .badge { background-color: var(--sand) !important; color: var(--gunmetal) !important; font-weight: 700; }
+
+        .card-header h4 { color: var(--gunmetal); }
+        .current-set-text { color: var(--gunmetal); }
+
+        .badge-brown { background-color: var(--brown) !important; }
+
+        .btn-khaki { background-color: var(--khaki); border-color: var(--khaki); color: white; }
+        .btn-khaki:hover { background-color: #555949; border-color: #555949; color: white; }
+
+        .btn-outline-brown { color: var(--brown); border-color: var(--brown); border-width: 2px;}
+        .btn-outline-brown:hover { background-color: var(--brown); color: white; }
+
+      .sortable-ghost {
+            /* Это то место, откуда вы забрали карточку. Сделаем его полупрозрачным и с пунктиром */
+            opacity: 0.4;
+            border: 2px dashed var(--khaki) !important;
+            background-color: var(--sand);
+        }
+        .sortable-drag {
+            /* Это сама карточка, которую вы держите в руке */
+            opacity: 1 !important;
+            cursor: grabbing !important;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3) !important; /* Добавляем тень, чтобы она "приподнялась" */
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="pb-5">
+
+    <div class="header-gunmetal text-white p-3 mb-4 shadow-sm sticky-top">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-truncate pe-2">{{ workout_log.routine.name }}</h5>
+            <span class="badge fs-6">{{ workout_log.date|date:"d.m.Y" }}</span>
+        </div>
+    </div>
+
+    <div class="container" id="exercise-list">
+        {% for item in exercises_data %}
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                    <h4 class="fw-bold mb-0">{{ item.exercise.name }}</h4>
+                    <span class="drag-handle text-muted" style="cursor: grab; font-size: 1.5rem;">☰</span>
+                </div>
+                <div class="card-body">
+
+                    <!-- Блок истории (коричневые акценты) -->
+                    <div class="bg-light p-3 rounded mb-3 border">
+                        {% if item.previous_sets %}
+                            <div class="text-muted mb-2" style="font-size: 0.85em;">
+                                <strong>Прошлый раз ({{ item.last_date|date:"d.m" }}):</strong>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for p_set in item.previous_sets %}
+                                    <span class="badge badge-brown fs-6 fw-normal">{{ p_set.weight }} кг × {{ p_set.reps }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted" style="font-size: 0.85em;">Нет данных о прошлых тренировках</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Текущие подходы -->
+                    {% if item.current_sets %}
+                        <div class="mb-3">
+                            <strong class="d-block mb-2 current-set-text">Сегодня:</strong>
+                            <ul class="list-group shadow-sm">
+                                {% for c_set in item.current_sets %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                        <div>
+                                            <span class="text-muted me-2">Подход {{ forloop.counter }}</span>
+                                            <strong class="fs-5 current-set-text">{{ c_set.weight }} кг × {{ c_set.reps }}</strong>
+                                        </div>
+                                        <a href="{% url 'edit_set' c_set.id %}" class="btn btn-sm btn-outline-secondary border-0" style="font-size: 1.2rem; padding: 0 5px;">✏️</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- Форма ввода -->
+                    <form action="{% url 'add_set' workout_log.id item.exercise.id %}" method="POST" class="mt-3">
+                        {% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <div class="input-group">
+                                    <input type="number" name="weight" step="0.5" min="0" class="form-control bg-light border-secondary-subtle" placeholder="Вес" required>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <input type="number" name="reps" min="0" class="form-control bg-light border-secondary-subtle" placeholder="Повт." required>
+                            </div>
+                            <div class="col-3">
+                                <button type="submit" class="btn btn-khaki w-100 fw-bold fs-3 py-0">+</button>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Кнопка завершения -->
+        <div class="d-grid gap-2 mt-5 mb-4">
+            <a href="{% url 'home' %}" class="btn btn-outline-brown btn-lg fw-bold shadow-sm">Завершить тренировку</a>
+        </div>
+    </div>
+
+    <!-- Скрипт активации Drag-and-Drop -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var el = document.getElementById('exercise-list');
+            var sortable = Sortable.create(el, {
+                handle: '.drag-handle',
+                animation: 150,
+
+                // Главная магия: отключаем фантомный HTML5 drag-and-drop
+                forceFallback: true,
+
+                // Применяем наши новые классы из стилей
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                fallbackClass: 'sortable-drag'
+            });
+        });
+    </script>
+</body>
+</html>

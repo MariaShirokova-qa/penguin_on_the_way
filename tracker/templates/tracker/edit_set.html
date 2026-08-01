@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактировать подход</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gunmetal: #2a3439;
+            --khaki: #6b705c;
+            --brown: #7f4f24;
+            --sand: #e2e1d8;
+        }
+        body { background-color: var(--sand) !important; font-family: 'Barlow', sans-serif; }
+        .header-gunmetal { background-color: var(--gunmetal); }
+        .btn-khaki { background-color: var(--khaki); border-color: var(--khaki); color: white; }
+        .btn-khaki:hover { background-color: #555949; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="header-gunmetal text-white p-3 mb-4 shadow-sm">
+        <div class="container">
+            <h5 class="mb-0 fw-bold">Редактирование</h5>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card shadow-sm border-0" style="border-top: 4px solid var(--brown);">
+            <div class="card-body">
+                <h4 class="fw-bold mb-3" style="color: var(--gunmetal);">{{ set_log.exercise.name }}</h4>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Вес (кг)</label>
+                        <!-- value подставляет текущее значение из базы -->
+                        <input type="number" name="weight" step="0.5" min="0" value="{{ set_log.weight }}" class="form-control form-control-lg bg-light" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Повторения</label>
+                        <input type="number" name="reps" min="0" value="{{ set_log.reps }}" class="form-control form-control-lg bg-light" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-khaki btn-lg w-100 fw-bold mb-2">Сохранить изменения</button>
+                    <a href="{% url 'active_workout' set_log.workout_log.id %}" class="btn btn-outline-secondary btn-lg w-100 fw-bold">Отмена</a>
+                </form>
+
+                <form action="{% url 'delete_set' set_log.id %}" method="POST" class="mt-4 pt-4 border-top">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-lg w-100 fw-bold">Удалить подход</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

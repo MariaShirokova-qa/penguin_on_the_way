@@ -1,20 +1,27 @@
-from datetime import date, timedelta
 import json
 import random
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from .models import Exercise, Routine, RoutineExercise, SetLog, WorkoutLog
+from .models import Exercise, Routine, RoutineExercise, SetLog, WorkoutLog, Boss, HeroProfile
 
+from datetime import date, timedelta
+from django.shortcuts import render
+
+from django.utils.safestring import mark_safe
+
+
+# Убедись, что модель Boss импортирована!
 
 def home(request):
     routines = Routine.objects.all()
-    workouts = WorkoutLog.objects.filter(routine__user=request.user)
+    # Учитываем твою логику связи через routine__user
+    workouts = WorkoutLog.objects.filter(routine__user=request.user, completed=True)
 
-    # ИСПРАВЛЕНИЕ: Превращаем дату-время в чистую дату (w.date извлекается как дата или дата-время, берем .date() если это datetime)
+    hero, _ = HeroProfile.objects.get_or_create(user=request.user)
+
     workout_dict = {}
     for w in workouts:
-        # Если w.date — это datetime, берем .date(), если уже date — оставляем как есть
         d = w.date.date() if hasattr(w.date, 'date') else w.date
         workout_dict[d] = w
 
@@ -36,10 +43,43 @@ def home(request):
             'workout': workout,
         })
 
+    boss, created = Boss.objects.get_or_create(
+        user=request.user,
+        defaults={'name': 'Ледяной Великан', 'max_hp': 1000, 'current_hp': 1000, 'level': 1}
+    )
+
+    # ==========================================
+    # ⚔️ ЛОГИКА ШТРАФОВ ЗА ПРОПУСК ТРЕНИРОВКИ ⚔️
+    # ==========================================
+    REQUIRED_DAYS = [0, 2, 4]  # 0=Пн, 2=Ср, 4=Пт
+    today = date(2026, 8, 5)
+    yesterday = today - timedelta(days=1)
+
+    # Ключ для сессии, чтобы не лечить босса при каждом обновлении страницы
+    penalty_key = f"boss_penalty_{yesterday.strftime('%Y-%m-%d')}"
+
+    # Если вчера был обязательный день, и мы его еще не проверяли
+    if yesterday.weekday() in REQUIRED_DAYS and not request.session.get(penalty_key):
+
+        # Проверяем, есть ли тренировка за вчера в твоем workout_dict
+        yesterday_workout = workout_dict.get(yesterday)
+
+        # Если тренировки нет (или если есть поле completed и оно False)
+        # Если у тебя в WorkoutLog нет поля completed, оставь просто `if not yesterday_workout:`
+        if not yesterday_workout or not getattr(yesterday_workout, 'completed', True):
+            boss.current_hp = min(boss.max_hp, boss.current_hp + 100)
+            boss.save()
+
+        # Ставим отметку в сессию: "За этот день проверка пройдена"
+        request.session[penalty_key] = True
+    # ==========================================
+
     return render(request, 'tracker/home.html', {
         'routines': routines,
         'week_days': week_days,
         'workouts': workouts,
+        'boss': boss,
+        'hero': hero,
     })
 
 
@@ -156,8 +196,94 @@ def update_exercise_order(request, routine_id):
 
         return JsonResponse({'status': 'success'})
 
+
 def finish_workout(request, workout_id):
-    # Наш арсенал средневековых мотиваций
+    # 1. Получаем текущую тренировку
+    workout = get_object_or_404(WorkoutLog, id=workout_id)
+
+    workout.completed = True
+    workout.save()
+
+    # 1. Получаем или создаем профиль героя
+    hero, created = HeroProfile.objects.get_or_create(user=request.user)
+
+    base_xp = 100
+    bonus_xp = 0
+
+    # 2. Анализируем прогрессию нагрузок для бонусов
+    current_sets = SetLog.objects.filter(workout_log=workout)
+
+    for current_set in current_sets:
+        # Ищем лучший подход в этом же упражнении из прошлых завершенных тренировок
+        prev_best_set = SetLog.objects.filter(
+            workout_log__routine__user=request.user,
+            exercise=current_set.exercise,
+            workout_log__date__lt=workout.date,
+            workout_log__completed=True
+        ).order_by('-weight', '-reps').first()
+
+        if prev_best_set:
+            if current_set.weight > prev_best_set.weight:
+                bonus_xp += 50  # Бонус за рост рабочего веса
+            elif current_set.weight == prev_best_set.weight and current_set.reps > prev_best_set.reps:
+                bonus_xp += 25  # Бонус за рост выносливости (повторений)
+
+    # 3. Начисляем опыт и сохраняем
+    total_xp_gained = base_xp + bonus_xp
+    hero.experience += total_xp_gained
+    hero.save()
+
+    # 2. Получаем Босса
+    boss = Boss.objects.get(user=request.user)
+
+    # 3. Базовый урон
+    base_damage = 50
+    bonus_damage = 0
+
+    # 4. Расчет бонуса за прогресс весов (Критический урон)
+    current_sets = SetLog.objects.filter(workout_log=workout)
+
+    # Находим максимальный вес для каждого упражнения на этой тренировке
+    current_max_weights = {}
+    for s in current_sets:
+        if s.weight is not None:
+            if s.exercise.id not in current_max_weights or s.weight > current_max_weights[s.exercise.id]:
+                current_max_weights[s.exercise.id] = s.weight
+
+    # Сравниваем с прошлыми тренировками
+    for exercise_id, current_max in current_max_weights.items():
+        # Ищем максимальный вес для этого упражнения СТРОГО до сегодняшней даты
+        prev_max_set = SetLog.objects.filter(
+            workout_log__routine__user=request.user,
+            exercise_id=exercise_id,
+            workout_log__date__lt=workout.date
+        ).order_by('-weight').first()
+
+        # Если раньше это упражнение делали и сейчас вес больше — даем бонус!
+        if prev_max_set and prev_max_set.weight is not None:
+            if current_max > prev_max_set.weight:
+                bonus_damage += 10
+
+    total_damage = base_damage + bonus_damage
+
+    # 5. Наносим урон боссу
+    boss.current_hp -= total_damage
+
+    # Формируем сообщение об уроне
+    boss_message = f" ⚔️ Ты нанесла {total_damage} урона боссу {boss.name}!"
+    if bonus_damage > 0:
+        boss_message += f" (Из них {bonus_damage} — критический урон за новые рекорды!)"
+
+    # 6. Проверка на смерть босса
+    if boss.current_hp <= 0:
+        boss.level += 1
+        boss.max_hp += 200  # Босс становится жирнее
+        boss.current_hp = boss.max_hp
+        boss_message += f" 👹 Враг пал! {boss.name} переходит на {boss.level} уровень и становится сильнее!"
+
+    boss.save()
+
+    # 7. Наш арсенал средневековых мотиваций
     quotes = [
         "Твой дух выкован из лучшей стали. Славный бой с железом окончен, воительница!",
         "Доспехи тяжелы, но твоя решимость крепче. Сегодня ты одержала еще одну великую победу!",
@@ -167,8 +293,18 @@ def finish_workout(request, workout_id):
         "Ты не просто подняла тяжесть, ты бросила вызов гравитации и победила, как истинная королева Севера!"
     ]
 
-    # Прикрепляем случайную фразу к сообщению об успехе
-    messages.success(request, random.choice(quotes))
+    quote = random.choice(quotes)
+    styled_quote = f"<span style='font-style: italic; font-size: 1.1rem; color: #f8f9fa;'>{quote}</span>"
 
-    # Возвращаем на главную страницу
+    # 1. Формируем чистую строку про полученный опыт
+    xp_message = f"✨ Получено {total_xp_gained} XP (из них {bonus_xp} за рекорды)."
+
+    # 2. Собираем текст
+    final_message = mark_safe(
+        f"{styled_quote}<br><br>"
+        f"{xp_message}<br>"
+        f"⚔️ Ты нанесла {total_damage} урона боссу {boss.name}!"
+    )
+
+    messages.success(request, final_message)
     return redirect('home')

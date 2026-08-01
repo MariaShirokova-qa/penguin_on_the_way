@@ -84,10 +84,16 @@
 </head>
 <body class="pb-5">
 
-    <div class="header-gunmetal text-white p-3 mb-4 shadow-sm sticky-top">
+    <div class="header-gunmetal text-white py-3 mb-4 shadow-sm sticky-top">
         <div class="container d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 text-truncate pe-2">⚔️ Битва: {{ workout_log.routine.name }}</h5>
-            <span class="badge fs-6">{{ workout_log.date|date:"d.m.Y" }}</span>
+            <span class="mb-0 h1 text-truncate pe-2" style="font-size: 1.25rem;">⚔️ {{ workout_log.routine.name }}</span>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge fs-6 d-none d-sm-inline">{{ workout_log.date|date:"d.m.Y" }}</span>
+                <a href="{% url 'home' %}" class="btn btn-sm btn-outline-light d-flex align-items-center justify-content-center" style="border-color: var(--khaki); width: 34px; height: 34px;" title="Вернуться в крепость">
+                    <span>🏰</span>
+                </a>
+            </div>
         </div>
     </div>
 

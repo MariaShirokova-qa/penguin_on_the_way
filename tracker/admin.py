@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import models  # НОВЫЙ ИМПОРТ: нужен, чтобы сослаться на IntegerField
 from django.forms import NumberInput  # НОВЫЙ ИМПОРТ: нужен для управления HTML-инпутом
-from .models import Exercise, Routine, RoutineExercise, WorkoutLog, SetLog
+from .models import Exercise, Routine, RoutineExercise, WorkoutLog, SetLog, HeroProfile, Boss
 
 
 class RoutineExerciseInline(admin.TabularInline):
@@ -22,3 +22,5 @@ admin.site.register(Exercise)
 admin.site.register(Routine, RoutineAdmin)
 admin.site.register(WorkoutLog)
 admin.site.register(SetLog)
+admin.site.register(HeroProfile)
+admin.site.register(Boss)

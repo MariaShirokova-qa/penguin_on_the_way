@@ -13,10 +13,24 @@ class Exercise(models.Model):
 class Routine(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     name = models.CharField(max_length=100, verbose_name="Название программы")
-    exercises = models.ManyToManyField(Exercise, verbose_name="Упражнения")
+    # Указываем Django использовать нашу новую промежуточную таблицу:
+    exercises = models.ManyToManyField(Exercise, through='RoutineExercise', verbose_name="Упражнения")
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
+
+# НОВАЯ ПРОМЕЖУТОЧНАЯ ТАБЛИЦА
+class RoutineExercise(models.Model):
+    routine = models.ForeignKey(Routine, on_delete=models.CASCADE)
+    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
+    order = models.IntegerField(default=0, verbose_name="Порядок")
+
+    class Meta:
+        # Указываем базе данных всегда сортировать по этому полю
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.routine.name} - {self.exercise.name}"
 
 # 3. Запись конкретного дня тренировки
 class WorkoutLog(models.Model):

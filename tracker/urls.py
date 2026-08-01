@@ -8,4 +8,6 @@ urlpatterns = [
     path('workout/<int:workout_id>/exercise/<int:exercise_id>/add/', views.add_set, name='add_set'),
     path('set/<int:set_id>/edit/', views.edit_set, name='edit_set'),
     path('set/<int:set_id>/delete/', views.delete_set, name='delete_set'),
+    path('routine/<int:routine_id>/reorder/', views.update_exercise_order, name='reorder_exercises'),
+    path('workout/<int:workout_id>/finish/', views.finish_workout, name='finish_workout'),
 ]

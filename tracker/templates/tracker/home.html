@@ -12,6 +12,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&display=swap" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kelly+Slab&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -34,8 +39,8 @@
         /* Специальный класс для атмосферных RPG-заголовков */
         .rpg-title {
             font-family: 'Cormorant SC', serif !important;
-            letter-spacing: 0.5px;
-            text-transform: uppercase; /* Добавляет шрифту строгости */
+            letter-spacing: 1.5px;
+            /*text-transform: uppercase; /* Добавляет шрифту строгости */
         }
 
         /* Дизайн элементов SkjaldFit */
@@ -45,6 +50,16 @@
 
         .btn-khaki { background-color: var(--khaki); border-color: var(--khaki); color: white; }
         .btn-khaki:hover { background-color: #555949; border-color: #555949; color: white; }
+
+        /* Стиль для названий наград в инвентаре */
+        .viking-reward {
+            font-family: 'Alegreya SC', serif !important;
+            font-size: 1.5rem; /* Делаем крупнее, так как шрифт узорчатый */
+            letter-spacing: 1px;
+            color: var(--brown, #7f4f24);
+            text-transform: capitalize; /* Делает только первые буквы заглавными */
+        }
+
     </style>
 </head>
 
@@ -52,7 +67,7 @@
 
     <nav class="navbar navbar-dark navbar-custom mb-4 shadow-sm py-3">
         <div class="container d-flex justify-content-between align-items-center">
-            <span class="navbar-brand mb-0 h1">🛡️ SkjaldFit</span>
+            <span class="navbar-brand rpg-title mb-0 h1">🛡️ SkjaldFit</span>
             <a href="{% url 'home' %}" class="btn btn-sm btn-outline-light d-flex align-items-center justify-content-center" style="border-color: var(--khaki); width: 34px; height: 34px;" title="Крепость">
                 <span>🏰</span>
             </a>
@@ -229,6 +244,150 @@
         </div>
     </div>
 
+    <!-- Плавающая кнопка Инвентаря (всегда на экране) -->
+    <div class="position-fixed bottom-0 end-0 m-4" style="z-index: 1050;">
+        <button type="button"
+                class="btn fw-bold shadow-lg rounded-pill px-4 py-3 d-flex align-items-center gap-2 transition-all"
+                data-bs-toggle="modal"
+                data-bs-target="#inventoryModal"
+                style="background-color: var(--gunmetal, #2a3439); color: var(--sand, #e2e1d8); border: 2px solid var(--brown, #7f4f24); transition: transform 0.2s;">
+
+            <span class="fs-5">📜</span>
+            <span style="letter-spacing: 1px;">Инвентарь</span>
+            <span class="opacity-50">|</span>
+            <span class="fs-5 text-warning">🔥 {{ hero.current_streak }}</span>
+
+        </button>
+    </div>
+
+    <!-- Модальное окно: Инвентарь (Свиток Деяний) -->
+    <div class="modal fade" id="inventoryModal" tabindex="-1" aria-labelledby="inventoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content" style="background-color: var(--sand, #e2e1d8); border: 2px solid var(--brown, #7f4f24); border-radius: 0;">
+
+                <!-- Шапка окна -->
+                <div class="modal-header border-0 pb-0 justify-content-center position-relative">
+                    <h3 class="modal-title viking-reward text-center w-100" id="inventoryModalLabel" style="font-size: 1.8rem;">
+                        📜 Свиток Деяний
+                    </h3>
+                    <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Тело окна (скроллится, если много лута) -->
+                <div class="modal-body p-4">
+
+                    <!-- ================= СЕКЦИЯ 1: ТИТУЛЫ ================= -->
+                    <h4 class="viking-reward text-center mb-3" style="color: var(--gunmetal, #2a3439);">Великие Титулы</h4>
+
+                    <div class="d-flex flex-column gap-3 mb-4">
+                        {% if hero.achievements.all %}
+                            {% for achievement in hero.achievements.all %}
+                                <!-- Карточка Титула -->
+                                <div class="p-3 shadow-sm rounded" style="background-color: rgba(255,255,255,0.6); border-left: 4px solid var(--brown, #7f4f24);">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="fs-3 me-3">{{ achievement.icon }}</span>
+                                        <span class="viking-reward">{{ achievement.name }}</span>
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: #4a5559;">{{ achievement.description }}</div>
+                                    <div style="font-size: 0.75rem; color: #888; text-align: right; margin-top: 5px;">
+                                        Получено: {{ achievement.unlocked_at|date:"d.m.Y" }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted fst-italic">Ваш путь только начинается, Воительница.</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Декоративный разделитель -->
+                    <hr style="border-top: 2px dashed var(--brown, #7f4f24); opacity: 0.5;">
+
+                    <!-- ================= СЕКЦИЯ 2: РУНЫ ================= -->
+                    <h4 class="viking-reward text-center mt-3 mb-3" style="color: var(--gunmetal, #2a3439);">Добытые Руны</h4>
+
+                    <!-- Контейнер с внутренним скроллом для инвентаря -->
+                    <div style="max-height: 300px; overflow-y: auto; overflow-x: hidden; padding: 15px 15px 10px 10px;">
+                        <div class="row g-3">
+                            {% if hero.runes.all %}
+                                {% for rune in hero.runes.all %}
+                                    <!-- Плитка одной руны -->
+                                    <div class="col-6 col-md-4">
+                                        <div class="p-2 text-center rounded position-relative shadow-sm"
+                                             style="background-color: var(--gunmetal, #2a3439); border: 1px solid var(--brown, #7f4f24); color: var(--sand, #e2e1d8); cursor: pointer;"
+                                             tabindex="0"
+                                             data-bs-toggle="popover"
+                                             data-bs-trigger="click"
+                                             data-bs-placement="top"
+                                             data-bs-title="{{ rune.icon }} {{ rune.name }}"
+                                             data-bs-content="{{ rune.description }}">
+
+                                            <!-- Иконка руны -->
+                                            <div class="fs-2 mb-1">{{ rune.icon }}</div>
+
+                                            <!-- Название руны -->
+                                            <div class="viking-reward" style="font-size: 0.85rem; color: #e2e1d8; letter-spacing: 0;">
+                                                {{ rune.name }}
+                                            </div>
+
+                                            <!-- Бейджик с количеством -->
+                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill shadow-sm"
+                                                  style="background-color: var(--brown, #7f4f24); color: var(--sand, #e2e1d8); border: 1px solid var(--sand, #e2e1d8); font-size: 0.8rem;">
+                                                x{{ rune.quantity }}
+                                            </span>
+
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12 text-center text-muted fst-italic">Мешок пока пуст. Завершите тренировку, чтобы выбить первую руну!</div>
+                            {% endif %}
+                        </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // 1. Инициализируем все поповеры
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl, {
+                    trigger: 'click',
+                    html: true
+                });
+            });
+
+            // 2. Закрытие старого попапа при клике на другую руну
+            popoverTriggerList.forEach(function (element) {
+                element.addEventListener('click', function (e) {
+                    popoverTriggerList.forEach(function (otherElement) {
+                        if (otherElement !== element) {
+                            var otherPopover = bootstrap.Popover.getInstance(otherElement);
+                            if (otherPopover) {
+                                otherPopover.hide();
+                            }
+                        }
+                    });
+                });
+            });
+
+            // 3. НОВОЕ: Закрытие попапа при клике в любое место мимо рун и самих попапов
+            document.addEventListener('click', function (e) {
+                // Проверяем, был ли клик внутри плитки руны ИЛИ внутри всплывшего попапа
+                var isClickInsidePopover = e.target.closest('[data-bs-toggle="popover"]') || e.target.closest('.popover');
+
+                if (!isClickInsidePopover) {
+                    // Если кликнули в сторону — скрываем все активные поповеры
+                    popoverList.forEach(function (popover) {
+                        popover.hide();
+                    });
+                }
+            });
+        });
+    </script>
+
 </body>
 </html>

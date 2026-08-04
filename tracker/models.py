@@ -84,8 +84,12 @@ class HeroProfile(models.Model):
     target_muscles = models.CharField(max_length=200, default="Спина, Ягодицы, Плечи",
                                       verbose_name="Акцентные мышцы")
 
-    # RPG составляющая
+    # XP
     experience = models.IntegerField(default=0, verbose_name="Опыт (XP)")
+
+    # Стрики
+    current_streak = models.IntegerField(default=0, verbose_name="Текущий стрик")
+    last_workout_date = models.DateField(null=True, blank=True, verbose_name="Дата последней тренировки")
 
     @property
     def level(self):
@@ -104,3 +108,26 @@ class HeroProfile(models.Model):
 
     def __str__(self):
         return f"Герой {self.user.username} - Уровень {self.level}"
+
+
+# 2. Инвентарь (Наград)
+class Achievement(models.Model):
+    hero = models.ForeignKey(HeroProfile, on_delete=models.CASCADE, related_name='achievements')
+    name = models.CharField(max_length=100, verbose_name="Название руны/титула")
+    icon = models.CharField(max_length=50, verbose_name="Иконка (Эмодзи)")
+    description = models.TextField(verbose_name="Описание подвига")
+    unlocked_at = models.DateField(auto_now_add=True, verbose_name="Дата получения")
+
+    def __str__(self):
+        return f"{self.icon} {self.name} ({self.hero.user.username})"
+
+# НОВАЯ Мешок для рун
+class HeroRune(models.Model):
+    hero = models.ForeignKey(HeroProfile, on_delete=models.CASCADE, related_name='runes')
+    name = models.CharField(max_length=50, verbose_name="Название руны")
+    icon = models.CharField(max_length=10, verbose_name="Символ")
+    quantity = models.IntegerField(default=1, verbose_name="Количество") # Считаем штуки!
+    description = models.TextField(verbose_name="Описание и лор", default="Сила этой руны пока не раскрыта.")
+
+    def __str__(self):
+        return f"{self.icon} {self.name} x{self.quantity} ({self.hero.user.username})"

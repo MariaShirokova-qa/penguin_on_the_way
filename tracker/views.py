@@ -3,7 +3,7 @@ import random
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from .models import Exercise, Routine, RoutineExercise, SetLog, WorkoutLog, Boss, HeroProfile
+from .models import Exercise, Routine, RoutineExercise, SetLog, WorkoutLog, Boss, HeroProfile, Achievement, HeroRune
 
 from datetime import date, timedelta
 from django.shortcuts import render
@@ -48,9 +48,8 @@ def home(request):
         defaults={'name': 'Ледяной Великан', 'max_hp': 1000, 'current_hp': 1000, 'level': 1}
     )
 
-    # ==========================================
-    # ⚔️ ЛОГИКА ШТРАФОВ ЗА ПРОПУСК ТРЕНИРОВКИ ⚔️
-    # ==========================================
+
+    # ЛОГИКА ШТРАФОВ ЗА ПРОПУСК ТРЕНИРОВКИ
     REQUIRED_DAYS = [0, 2, 4]  # 0=Пн, 2=Ср, 4=Пт
     today = date(2026, 8, 5)
     yesterday = today - timedelta(days=1)
@@ -197,6 +196,100 @@ def update_exercise_order(request, routine_id):
         return JsonResponse({'status': 'success'})
 
 
+# Список рун, которые могут выпасть (разместите его перед функцией)
+AVAILABLE_RUNES = [
+    # === 1. Этт Фрейра (Материальное и физическое) ===
+    ("ᚠ", "Феху (Богатство)", "Символ золота и изобилия. Понадобится в Кузнице для создания 'Кольца Андвари' (бонус к опыту)."),
+    ("ᚢ", "Уруз (Сила)", "Первобытная энергия дикого быка. Ключевой компонент для крафта тяжелой брони."),
+    ("ᚦ", "Турисаз (Мощь)", "Удар молота Тора. Сохраните её, чтобы выковать 'Секиру Пробивания Плато'."),
+    ("ᚨ", "Ансуз (Мудрость)", "Дыхание Одина. Используется для создания зелий концентрации."),
+    ("ᚱ", "Райдо (Путь)", "Колесо телеги. Незаменима для артефактов, ускоряющих восстановление после тренировок."),
+    ("ᚲ", "Кеназ (Огонь)", "Внутреннее пламя. Освещает путь и сжигает калории. Нужна для 'Клинка Имира'."),
+    ("ᚷ", "Гебо (Дар)", "Руна баланса. Соединяет несовместимые стихии при сложном крафте."),
+    ("ᚹ", "Вуньо (Триумф)", "Радость победы. Вплетается в знамена и дарует титулы."),
+
+    # === 2. Этт Хеймдалля (Преодоление и стойкость) ===
+    ("ᚺ", "Хагалаз (Разрушение)", "Разрушение старых привычек и слабостей. Очищает слот для мощных чар."),
+    ("ᚾ", "Наутиз (Преодоление)", "Выносливость в трудные моменты. Закаляет волю в период тяжелых нагрузок."),
+    ("ᛁ", "Иса (Лед)", "Холодный рассудок и концентрация. Нужна для защиты от ментальной усталости."),
+    ("ᛃ", "Йера (Урожай)", "Награда за регулярный труд. Умножает количество получаемых ресурсов."),
+    ("ᛇ", "Эйваз (Древо)", "Стойкость Иггдрасиля. Крепкий стержень и защита суставов от травм."),
+    ("ᛈ", "Перто (Судьба)", "Скрытый потенциал. Позволяет заглянуть за грани возможностей во время подходов."),
+    ("ᛉ", "Альгиз (Защита)", "Щит Хеймдалля. Оберегает воительницу от выгорания и спасает стрик."),
+    ("ᛋ", "Совилу (Солнце)", "Энергия светила. Заряжает тело взрывной силой перед тяжелой тренировкой."),
+
+    # === 3. Этт Тюра (Дух и разум) ===
+    ("ᛏ", "Тейваз (Победа)", "Копье Тюра. Главный элемент для создания легендарного оружия победы."),
+    ("ᛒ", "Беркана (Рост)", "Возрождение и обновление тела. Ускоряет мышечное восстановление после сна."),
+    ("ᛖ", "Эваз (Прогресс)", "Движение вперед без остановок. Увеличивает темп и продуктивность сессии."),
+    ("ᛗ", "Манназ (Человек)", "Самосовершенствование. Помогает превзойти свои прошлые рекорды."),
+    ("ᛚ", "Лагуз (Поток)", "Гибкость и адаптация. Помогает легко переносить смену программы тренировок."),
+    ("ᛜ", "Ингуз (Энергия)", "Внутреннее семя силы. Накапливает энергию для финального рывка в упражнении."),
+    ("ᛞ", "Дагаз (Прорыв)", "Рассвет и трансформация. Символ перехода на новый уровень физической формы."),
+    ("ᛟ", "Одал (Наследие)", "Родовая память. Закрепляет достигнутый результат навечно в вашем профиле.")
+]
+
+
+def update_streak_and_achievements(hero_profile):
+    """
+    Выдает 1 случайную руну за каждую тренировку и проверяет стрик для Титулов.
+    Возвращает HTML-строку с сообщением о луте.
+    """
+    today = date.today()
+    loot_message = ""
+
+    # === 1. ФАРМ РУН (Срабатывает ВСЕГДА, без ограничений) ===
+    icon, name, desc = random.choice(AVAILABLE_RUNES)
+
+    hero_rune, created = HeroRune.objects.get_or_create(
+        hero=hero_profile,
+        name=name,
+        # Добавили description в defaults!
+        defaults={'icon': icon, 'quantity': 0, 'description': desc}
+    )
+    hero_rune.quantity += 1
+    # Если руна уже была, на всякий случай обновляем её описание на самое свежее из списка
+    hero_rune.description = desc
+    hero_rune.save()
+
+    # Добавляем в сообщение информацию о выпавшей руне
+    loot_message += f"<br><br><span style='color: inherit; font-size: 0.9 rem;'>✨ Выбита руна: {icon} {name}!</span>"
+
+    # === 2. ПРОВЕРКА СТРИКА (Срабатывает только 1 раз в день) ===
+    if hero_profile.last_workout_date != today:
+        # Если сегодня тренировок еще не было, считаем дни
+        if hero_profile.last_workout_date:
+            delta_days = (today - hero_profile.last_workout_date).days
+
+            if delta_days <= 3:
+                hero_profile.current_streak += 1
+            else:
+                hero_profile.current_streak = 1  # Костер потух, начинаем заново
+        else:
+            hero_profile.current_streak = 1
+
+        hero_profile.last_workout_date = today
+        hero_profile.save()
+
+    # === 3. ПУТЬ НА АСГАРД (Выдача Титулов) ===
+    rewards = {
+        7: ("🛡️", "Звание: Страж Предела", "Первое испытание пройдено. Костер разведен."),
+        21: ("🪓", "Титул: Берсерк", "Тело привыкло к стали. Дисциплина крепчает."),
+        45: ("🦅", "Звание: Ворон Одина", "Тренировки стали вашей истинной природой."),
+        90: ("⚡", "Титул: Эйнхерий", "Легендарный статус. Вы достойны залов Вальхаллы!"),
+        180: ("❄️", "Гроза Ётунов", "Боссы дрожат при одном вашем виде.")
+    }
+
+    if hero_profile.current_streak in rewards:
+        t_icon, t_name, t_desc = rewards[hero_profile.current_streak]
+
+        if not Achievement.objects.filter(hero=hero_profile, name=t_name).exists():
+            Achievement.objects.create(hero=hero_profile, icon=t_icon, name=t_name, description=t_desc)
+            # Добавляем приписку о новом титуле к сообщению о руне
+            loot_message += f"<br><span class='viking-reward' style='color: var(--sand, #e2e1d8); font-weight: bold;'>📜 Получен великий титул: {t_icon} {t_name}!</span>"
+
+    return loot_message
+
 def finish_workout(request, workout_id):
     # 1. Получаем текущую тренировку
     workout = get_object_or_404(WorkoutLog, id=workout_id)
@@ -283,6 +376,8 @@ def finish_workout(request, workout_id):
 
     boss.save()
 
+    achievement_msg = update_streak_and_achievements(hero)
+
     # 7. Наш арсенал средневековых мотиваций
     quotes = [
         "Твой дух выкован из лучшей стали. Славный бой с железом окончен, воительница!",
@@ -303,7 +398,8 @@ def finish_workout(request, workout_id):
     final_message = mark_safe(
         f"{styled_quote}<br><br>"
         f"{xp_message}<br>"
-        f"⚔️ Ты нанесла {total_damage} урона боссу {boss.name}!"
+        f"{boss_message}"
+        f"{achievement_msg}"
     )
 
     messages.success(request, final_message)

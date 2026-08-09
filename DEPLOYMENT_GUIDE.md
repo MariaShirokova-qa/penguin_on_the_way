@@ -52,40 +52,20 @@
 
 ## Шаг 5: Настройка базы данных
 
-PythonAnywhere использует PostgreSQL вместо SQLite:
+Для бесплатного тарифа PythonAnywhere используем SQLite (подходит для небольших проектов):
 
-1. В PythonAnywhere перейдите в "Databases" tab
-2. Создайте новую базу данных (PostgreSQL)
-3. Запишите данные подключения:
-   - Database name
-   - Username
-   - Password
-   - Host
-   - Port
-
-4. Обновите settings.py:
-   ```python
-   DATABASES = {
-       'default': {
-           'ENGINE': 'django.db.backends.postgresql',
-           'NAME': 'your_db_name',
-           'USER': 'your_db_user',
-           'PASSWORD': 'your_db_password',
-           'HOST': 'your_db_host',
-           'PORT': 'your_db_port',
-       }
-   }
-   ```
-
-5. Запустите миграции:
+1. База данных уже настроена в settings.py (SQLite)
+2. Запустите миграции:
    ```bash
    python manage.py migrate
    ```
 
-6. Создайте суперпользователя:
+3. Создайте суперпользователя:
    ```bash
    python manage.py createsuperuser
    ```
+
+*Примечание: Если в будущем понадобится PostgreSQL для больших нагрузок, можно будет обновить до платного тарифа PythonAnywhere.*
 
 ## Шаг 6: Сбор статических файлов
 

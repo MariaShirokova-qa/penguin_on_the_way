@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -26,7 +27,11 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-zoen5nmlc5ns@2
 DEBUG = False
 
 # Для PythonAnywhere добавьте ваш домен, например: 'yourname.pythonanywhere.com'
-ALLOWED_HOSTS = ['192.168.0.1', 'localhost', '127.0.0.1', 'Mellador.pythonanywhere.com']
+ALLOWED_HOSTS = ['192.168.0.1', 'localhost', '127.0.0.1', 'mellador.pythonanywhere.com']
+
+# Login URL для перенаправления неавторизованных пользователей
+LOGIN_URL = '/admin/login/'
+LOGOUT_REDIRECT_URL = '/'
 
 # Application definition
 

@@ -1,6 +1,7 @@
 import json
 import random
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import transaction
 from django.http import JsonResponse
@@ -16,6 +17,7 @@ from django.utils.safestring import mark_safe
 
 # Убедись, что модель Boss импортирована!
 
+@login_required
 def home(request):
     routines = Routine.objects.all()
     # Учитываем твою логику связи через routine__user

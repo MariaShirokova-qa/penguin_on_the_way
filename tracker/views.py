@@ -15,18 +15,36 @@ from django.shortcuts import render
 from django.utils.safestring import mark_safe
 
 
+@login_required
+def switch_hero_class(request):
+    """Переключение класса героя"""
+    if request.method == 'POST':
+        new_class = request.POST.get('hero_class')
+        if new_class in ['shieldmaiden', 'warrior']:
+            hero_profile = HeroProfile.objects.get(user=request.user)
+            hero_profile.hero_class = new_class
+            hero_profile.save()
+            messages.success(request, f'Класс героя изменен на {hero_profile.get_hero_class_display()}')
+    return redirect('home')
+
+
 # Убедись, что модель Boss импортирована!
 
 @login_required
 def home(request):
-    routines = Routine.objects.all()
+    # Создаем hero_profile один раз
+    hero_profile, _ = HeroProfile.objects.get_or_create(user=request.user)
+    
+    # Фильтруем тренировки по классу героя пользователя
+    routines = Routine.objects.filter(hero_class=hero_profile.hero_class)
     # Учитываем твою логику связи через routine__user
     workouts = WorkoutLog.objects.filter(routine__user=request.user, completed=True)
-
-    hero, _ = HeroProfile.objects.get_or_create(user=request.user)
     
     # Рассчитываем процент стрика (максимум 7 дней для кругового индикатора)
-    streak_percentage = min(hero.current_streak * 100 / 7, 100)
+    streak_percentage = min(hero_profile.current_streak * 100 / 7, 100)
+
+    # Получаем или создаем Boss для пользователя
+    boss, _ = Boss.objects.get_or_create(user=request.user)
 
     workout_dict = {}
     for w in workouts:
@@ -91,7 +109,7 @@ def home(request):
         'week_days': week_days,
         'workouts': workouts,
         'boss': boss,
-        'hero': hero,
+        'hero': hero_profile,
         'streak_percentage': streak_percentage,
     })
 

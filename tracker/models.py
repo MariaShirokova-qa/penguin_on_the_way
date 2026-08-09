@@ -11,8 +11,19 @@ class Exercise(models.Model):
 
 # 2. Шаблон тренировки (Например, "Грудь + Трицепс")
 class Routine(models.Model):
+    HERO_CLASS_CHOICES = [
+        ('shieldmaiden', 'Воительница'),
+        ('warrior', 'Воин'),
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     name = models.CharField(max_length=100, verbose_name="Название программы")
+    hero_class = models.CharField(
+        max_length=20, 
+        choices=HERO_CLASS_CHOICES, 
+        default='shieldmaiden',
+        verbose_name="Класс героя"
+    )
     # Указываем Django использовать нашу новую промежуточную таблицу:
     exercises = models.ManyToManyField(Exercise, through='RoutineExercise', verbose_name="Упражнения")
 
@@ -49,6 +60,7 @@ class SetLog(models.Model):
     weight = models.DecimalField(max_digits=5, decimal_places=1, verbose_name="Вес (кг)")
     reps = models.IntegerField(verbose_name="Повторения")
     order = models.IntegerField(default=1, verbose_name="Порядковый номер подхода")
+    comment = models.TextField(blank=True, null=True, verbose_name="Комментарий к подходу")
 
     def __str__(self):
         return f"{self.exercise.name}: {self.weight}кг x {self.reps}"
@@ -75,7 +87,18 @@ class Boss(models.Model):
         return 0
 
 class HeroProfile(models.Model):
+    HERO_CLASS_CHOICES = [
+        ('shieldmaiden', 'Воительница'),
+        ('warrior', 'Воин'),
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='hero_profile')
+    hero_class = models.CharField(
+        max_length=20, 
+        choices=HERO_CLASS_CHOICES, 
+        default='shieldmaiden',
+        verbose_name="Класс героя"
+    )
 
     # Физические параметры и цели
     current_weight = models.DecimalField(max_digits=5, decimal_places=1, default=61.0, verbose_name="Текущий вес")

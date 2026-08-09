@@ -5,6 +5,33 @@
 {% block content %}
 {% csrf_token %}
 
+        <!-- Переключатель класса героя -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-0" style="border-top: 4px solid var(--brown, #7f4f24);">
+                    <div class="card-body">
+                        <form method="post" action="{% url 'switch_hero_class' %}" id="heroClassForm">
+                            {% csrf_token %}
+                            <div class="d-flex align-items-center justify-content-center gap-3">
+                                <span class="fw-bold" style="color: var(--gunmetal, #2a3439);">Выберите путь:</span>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="hero_class" id="shieldmaiden" value="shieldmaiden" {% if hero.hero_class == 'shieldmaiden' %}checked{% endif %} onchange="document.getElementById('heroClassForm').submit()">
+                                    <label class="btn btn-outline-secondary" for="shieldmaiden" style="{% if hero.hero_class == 'shieldmaiden' %}background-color: var(--khaki); color: white; border-color: var(--khaki);{% endif %}">
+                                        🧝‍♀️ Воительница
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="hero_class" id="warrior" value="warrior" {% if hero.hero_class == 'warrior' %}checked{% endif %} onchange="document.getElementById('heroClassForm').submit()">
+                                    <label class="btn btn-outline-secondary" for="warrior" style="{% if hero.hero_class == 'warrior' %}background-color: var(--khaki); color: white; border-color: var(--khaki);{% endif %}">
+                                        🧝‍♂️ Воин
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Блок RPG-статистики: Герой и Босс -->
         <div class="row mb-4">
 
@@ -16,7 +43,9 @@
                         <!-- Шапка карточки -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
-                                <h4 class="fw-bold mb-2" style="color: var(--gunmetal, #2a3439);">🧝‍♀️ Воительница</h4>
+                                <h4 class="fw-bold mb-2" style="color: var(--gunmetal, #2a3439);">
+                                    {% if hero.hero_class == 'shieldmaiden' %}🧝‍♀️ Воительница{% else %}🧝‍♂️ Воин{% endif %}
+                                </h4>
                                 <div class="text-muted" style="font-size: 0.85rem;">Ваш герой</div>
                             </div>
                             <div class="text-end">

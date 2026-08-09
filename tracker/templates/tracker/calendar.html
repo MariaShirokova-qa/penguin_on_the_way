@@ -1,0 +1,74 @@
+{% extends 'tracker/base.html' %}
+
+{% block title %}SkjaldFit | Календарь тренировок{% endblock %}
+
+{% block content %}
+{% load tracker_extras %}
+<div class="container">
+    <div class="card shadow-sm border-0" style="border-top: 4px solid var(--brown, #7f4f24);">
+        <div class="card-body">
+            <!-- Заголовок и навигация -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{% url 'workout_calendar' %}?month={{ prev_month }}&year={{ prev_year }}" 
+                   class="btn btn-outline-secondary">
+                    ← {{ prev_month }}
+                </a>
+                <h2 class="fw-bold mb-0" style="color: var(--gunmetal);">
+                    {{ month_name }} {{ year }}
+                </h2>
+                <a href="{% url 'workout_calendar' %}?month={{ next_month }}&year={{ next_year }}" 
+                   class="btn btn-outline-secondary">
+                    {{ next_month }} →
+                </a>
+            </div>
+
+            <!-- Календарь -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            {% for day in days_in_week %}
+                                <th class="text-center fw-bold" style="color: var(--gunmetal); min-width: 120px;">{{ day }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for week in cal %}
+                            <tr>
+                                {% for day in week %}
+                                    {% if day == 0 %}
+                                        <td class="table-light"></td>
+                                    {% else %}
+                                        <td class="text-center position-relative" style="min-height: 150px; vertical-align: top; min-width: 120px; {% if day == current_day and month == current_month and year == current_year %}background-color: rgba(107, 112, 92, 0.2); border: 2px solid var(--khaki);{% endif %}">
+                                            <div class="fw-bold mb-1" style="color: var(--gunmetal);">{{ day }}</div>
+                                            {% if day in workouts_by_day %}
+                                                <div class="d-flex flex-column gap-1">
+                                                    {% for workout in workouts_by_day|get_item:day %}
+                                                        <a href="{% url 'workout_detail' workout.id %}" 
+                                                           class="badge text-decoration-none" 
+                                                           style="font-size: 0.75rem; cursor: pointer; background-color: var(--khaki); color: white; white-space: normal; word-wrap: break-word;">
+                                                            {{ workout.routine.name }}
+                                                        </a>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Статистика за месяц -->
+            <div class="mt-4 p-3 rounded" style="background-color: var(--khaki); color: white;">
+                <h5 class="fw-bold mb-2">📊 Статистика за {{ month_name }}</h5>
+                <p class="mb-0">
+                    Всего тренировок: <strong>{{ workouts|length }}</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

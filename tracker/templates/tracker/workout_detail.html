@@ -1,0 +1,100 @@
+{% extends 'tracker/base.html' %}
+
+{% block title %}SkjaldFit | Детали тренировки{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow-sm border-0" style="border-top: 4px solid var(--brown, #7f4f24);">
+        <div class="card-body">
+            <!-- Заголовок -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-1" style="color: var(--gunmetal);">
+                        {{ workout.routine.name }}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {{ workout.date|date:"d F Y, H:i" }}
+                    </p>
+                </div>
+                <a href="{% url 'workout_calendar' %}" class="btn btn-outline-secondary">
+                    ← Вернуться к календарю
+                </a>
+            </div>
+
+            <!-- Общая статистика -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 p-3 text-center" style="background-color: var(--khaki); color: white;">
+                        <h4 class="fw-bold mb-1">{{ total_sets }}</h4>
+                        <small>Всего подходов</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 p-3 text-center" style="background-color: var(--khaki); color: white;">
+                        <h4 class="fw-bold mb-1">{{ total_reps }}</h4>
+                        <small>Всего повторений</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 p-3 text-center" style="background-color: var(--khaki); color: white;">
+                        <h4 class="fw-bold mb-1">{{ total_volume }}</h4>
+                        <small>Общий объем (кг)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Детали по упражнениям -->
+            <h4 class="fw-bold mb-3" style="color: var(--gunmetal);">Упражнения</h4>
+            
+            {% for exercise_id, data in exercises_data.items %}
+                <div class="card shadow-sm mb-3 border-0 exercise-card" data-muscle="{{ data.exercise.muscle_group|lower }}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0" style="color: var(--gunmetal);">
+                                {{ data.exercise.name }}
+                            </h5>
+                            <span class="badge bg-secondary">{{ data.exercise.muscle_group }}</span>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-4">
+                                <strong>{{ data.total_sets }}</strong> подходов
+                            </div>
+                            <div class="col-4">
+                                <strong>{{ data.total_reps }}</strong> повторений
+                            </div>
+                            <div class="col-4">
+                                <strong>{{ data.total_weight }}</strong> кг общий
+                            </div>
+                        </div>
+
+                        <!-- Таблица сетов -->
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Подход</th>
+                                    <th>Вес (кг)</th>
+                                    <th>Повторения</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for set_log in data.sets %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ set_log.weight }}</td>
+                                        <td>{{ set_log.reps }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="alert alert-secondary">
+                    Для этой тренировки не записано подходов.
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

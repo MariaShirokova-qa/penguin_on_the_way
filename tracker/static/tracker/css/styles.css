@@ -216,6 +216,177 @@ h1, h2, h3, h4, h5, h6, .navbar-brand {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .card {
+        border-radius: 8px;
+    }
+    
+    .exercise-card {
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+    
+    .exercise-card:hover {
+        transform: none;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Улучшенные карточки для мобильных */
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    /* Оптимизированные touch-элементы */
+    .btn, .form-control, .form-select {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+    
+    /* Увеличенные зоны клика для мобильных */
+    .exercise-checkbox {
+        width: 1.5rem;
+        height: 1.5rem;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    .drag-handle {
+        font-size: 1.8rem;
+        padding: 0.5rem;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Мобильные карточки */
+    .mobile-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Адаптивные прогресс-бары */
+    .progress {
+        height: 16px;
+    }
+    
+    .progress-bar {
+        font-size: 0.75rem;
+        line-height: 16px;
+    }
+    
+    /* Круговой прогресс для мобильных */
+    .circular-progress {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .circular-progress::before {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .circular-progress-value {
+        font-size: 1rem;
+    }
+    
+    /* Мобильная навигация */
+    .navbar-custom {
+        padding: 0.75rem 1rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    /* Модальные окна на мобильных */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-content {
+        border-radius: 12px;
+    }
+    
+    /* Инпуты для мобильных */
+    input[type="number"],
+    input[type="text"],
+    select {
+        font-size: 16px;
+    }
+    
+    /* Адаптация плавающих кнопок для мобильных */
+    .position-fixed.bottom-0.end-0 {
+        bottom: 0.5rem !important;
+        right: 0.5rem !important;
+        margin: 0 !important;
+    }
+    
+    .position-fixed.bottom-0.end-0 .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        min-height: 40px;
+    }
+    
+    .position-fixed.bottom-0.end-0 .btn span.fs-5 {
+        font-size: 1rem;
+    }
+    
+    .position-fixed.bottom-0.end-0 .circular-progress {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .position-fixed.bottom-0.end-0 .circular-progress::before {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .position-fixed.bottom-0.end-0 .circular-progress-value {
+        font-size: 0.9rem;
+    }
+    
+    /* Уменьшаем отступы между кнопками на мобильных */
+    .position-fixed.bottom-0.end-0 .d-flex {
+        gap: 0.5rem !important;
+    }
+    
+    /* Адаптация календаря для мобильных */
+    .table th, .table td {
+        min-width: 45px !important;
+        min-height: 70px !important;
+        font-size: 0.75rem;
+        padding: 0.25rem !important;
+    }
+    
+    .badge {
+        font-size: 0.6rem !important;
+        padding: 0.2rem 0.3rem !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+    }
+    
+    /* Убираем скролл-бар у календаря на мобильных */
+    .table-responsive {
+        overflow-x: visible !important;
+    }
+}
+
 /* Анимация при получении рун/артефактов */
 @keyframes glow {
     0%, 100% {

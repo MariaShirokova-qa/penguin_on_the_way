@@ -3,6 +3,7 @@
 {% block title %}SkjaldFit | Мои битвы{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 
         <!-- Блок RPG-статистики: Герой и Босс -->
         <div class="row mb-4">
@@ -94,13 +95,19 @@
         <!-- Недельная летопись (карусель дней) -->
         <div class="card shadow-sm border-0 mb-4" style="border-top: 4px solid var(--khaki);">
             <div class="card-body">
-                <h4 class="fw-bold mb-3" style="color: var(--gunmetal);">📜 Неделя битв</h4>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="fw-bold mb-0" style="color: var(--gunmetal);">📜 Неделя битв</h4>
+                    <a href="{% url 'workout_calendar' %}" class="btn btn-sm btn-outline-secondary">
+                        📅 Открыть календарь
+                    </a>
+                </div>
 
                 <div class="d-flex overflow-auto gap-2 pb-1" style="scrollbar-width: thin;">
                     {% for day in week_days %}
                         <div class="p-2 border rounded text-center flex-fill
                             {% if day.workout %} text-white {% elif day.is_today %} border-dark {% else %} bg-light text-muted {% endif %}"
-                            style="min-width: 85px; {% if day.workout %} background-color: var(--brown); border-color: var(--brown); {% endif %}">
+                            style="min-width: 85px; {% if day.workout %} background-color: var(--brown); border-color: var(--brown); {% endif %} cursor: pointer;"
+                            onclick="window.location.href='{% url 'workout_calendar' %}?month={{ day.month }}&year={{ day.year }}'">
 
                             <small class="d-block {% if day.workout %} opacity-75 {% endif %}">{{ day.day_name }}</small>
                             <span class="fw-bold fs-5">{{ day.day_number }}</span>
@@ -283,9 +290,6 @@
             // 2. Закрытие старого попапа при клике на другую руну
             popoverTriggerList.forEach(function (element) {
                 element.addEventListener('click', function (e) {
-                    // Снимаем класс свечения при клике на руну
-                    element.classList.remove('rune-new');
-                    
                     popoverTriggerList.forEach(function (otherElement) {
                         if (otherElement !== element) {
                             var otherPopover = bootstrap.Popover.getInstance(otherElement);
@@ -297,7 +301,71 @@
                 });
             });
 
-            // 3. НОВОЕ: Закрытие попапа при клике в любое место мимо рун и самих попапов
+            // 3. Снятие свечения при закрытии модального окна инвентаря
+            var inventoryModal = document.getElementById('inventoryModal');
+            if (inventoryModal) {
+                inventoryModal.addEventListener('hidden.bs.modal', function () {
+                    // Снимаем класс rune-new со всех рун при закрытии инвентаря
+                    var newRunes = document.querySelectorAll('.rune-new');
+                    newRunes.forEach(function (rune) {
+                        rune.classList.remove('rune-new');
+                    });
+                    
+                    // AJAX запрос для обновления базы данных
+                    fetch("{% url 'clear_new_runes' %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({})
+                    }).then(function(response) {
+                        return response.json();
+                    }).then(function(data) {
+                        if (data.success) {
+                            console.log('Флаг is_new успешно снят со всех рун');
+                        }
+                    }).catch(function(error) {
+                        console.error('Ошибка при снятии флага is_new:', error);
+                    });
+                });
+            }
+
+            // 4. Жесты для навигации на мобильных устройствах
+            var touchStartX = 0;
+            var touchEndX = 0;
+            var touchStartY = 0;
+            var touchEndY = 0;
+            
+            document.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, false);
+            
+            document.addEventListener('touchend', function(e) {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, false);
+            
+            function handleSwipe() {
+                var swipeThreshold = 50;
+                var diffX = touchEndX - touchStartX;
+                var diffY = touchEndY - touchStartY;
+                
+                // Свайп вниз для закрытия модального окна
+                if (diffY > swipeThreshold && Math.abs(diffX) < swipeThreshold) {
+                    var inventoryModal = document.getElementById('inventoryModal');
+                    if (inventoryModal) {
+                        var modalInstance = bootstrap.Modal.getInstance(inventoryModal);
+                        if (modalInstance && inventoryModal.classList.contains('show')) {
+                            modalInstance.hide();
+                        }
+                    }
+                }
+            }
+
+            // 5. НОВОЕ: Закрытие попапа при клике в любое место мимо рун и самих попапов
             document.addEventListener('click', function (e) {
                 // Проверяем, был ли клик внутри плитки руны ИЛИ внутри всплывшего попапа
                 var isClickInsidePopover = e.target.closest('[data-bs-toggle="popover"]') || e.target.closest('.popover');

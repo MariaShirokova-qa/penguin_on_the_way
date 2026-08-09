@@ -47,6 +47,8 @@ def home(request):
             'day_number': current_day.day,
             'is_today': current_day == today,
             'workout': workout,
+            'month': current_day.month,
+            'year': current_day.year,
         })
 
     boss, created = Boss.objects.get_or_create(
@@ -78,7 +80,8 @@ def home(request):
         request.session[penalty_key] = True
     # ==========================================
 
-    # НЕ снимаем флаг is_new автоматически - пусть руны светятся пока пользователь сам не кликнет на них
+    # НЕ снимаем флаг is_new автоматически при просмотре страницы
+    # Флаг будет сниматься через AJAX при закрытии модального окна
     # hero.runes.filter(is_new=True).update(is_new=False)
 
     return render(request, 'tracker/home.html', {
@@ -88,6 +91,130 @@ def home(request):
         'boss': boss,
         'hero': hero,
         'streak_percentage': streak_percentage,
+    })
+
+
+def clear_new_runes(request):
+    """AJAX view для снятия флага is_new со всех рун пользователя"""
+    if request.method == 'POST' and request.user.is_authenticated:
+        hero = get_object_or_404(HeroProfile, user=request.user)
+        hero.runes.filter(is_new=True).update(is_new=False)
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
+
+
+def workout_calendar(request):
+    """Календарь истории тренировок"""
+    from datetime import datetime
+    import calendar
+    
+    # Получаем параметры месяца и года из URL или используем текущие
+    year = int(request.GET.get('year', datetime.now().year))
+    month = int(request.GET.get('month', datetime.now().month))
+    
+    # Получаем текущую дату для подсветки
+    today = datetime.now()
+    current_day = today.day
+    current_month = today.month
+    current_year = today.year
+    
+    # Получаем все тренировки пользователя за выбранный месяц
+    from datetime import date as date_type
+    start_date = date_type(year, month, 1)
+    if month == 12:
+        end_date = date_type(year + 1, 1, 1)
+    else:
+        end_date = date_type(year, month + 1, 1)
+    
+    workouts = WorkoutLog.objects.filter(
+        user=request.user,
+        completed=True,
+        date__gte=start_date,
+        date__lt=end_date
+    ).order_by('date')
+    
+    # Создаем словарь тренировок по дням
+    workouts_by_day = {}
+    for workout in workouts:
+        day = workout.date.day
+        if day not in workouts_by_day:
+            workouts_by_day[day] = []
+        workouts_by_day[day].append(workout)
+    
+    # Получаем календарь на выбранный месяц
+    cal = calendar.monthcalendar(year, month)
+    month_names = {
+        1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+        5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+        9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+    }
+    month_name = month_names[month]
+    days_in_week = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+    
+    # Навигация по месяцам
+    if month == 12:
+        next_month, next_year = 1, year + 1
+    else:
+        next_month, next_year = month + 1, year
+    
+    if month == 1:
+        prev_month, prev_year = 12, year - 1
+    else:
+        prev_month, prev_year = month - 1, year
+    
+    return render(request, 'tracker/calendar.html', {
+        'year': year,
+        'month': month,
+        'month_name': month_name,
+        'cal': cal,
+        'days_in_week': days_in_week,
+        'workouts_by_day': workouts_by_day,
+        'workouts': workouts,
+        'next_month': next_month,
+        'next_year': next_year,
+        'prev_month': prev_month,
+        'prev_year': prev_year,
+        'current_day': current_day,
+        'current_month': current_month,
+        'current_year': current_year,
+    })
+
+
+def workout_detail(request, workout_id):
+    """Детальная статистика завершенной тренировки"""
+    workout = get_object_or_404(WorkoutLog, id=workout_id, user=request.user)
+    
+    # Получаем все сеты этой тренировки
+    sets = SetLog.objects.filter(workout_log=workout).select_related('exercise').order_by('exercise__name')
+    
+    # Группируем сеты по упражнениям
+    exercises_data = {}
+    for set_log in sets:
+        exercise = set_log.exercise
+        if exercise.id not in exercises_data:
+            exercises_data[exercise.id] = {
+                'exercise': exercise,
+                'sets': [],
+                'total_sets': 0,
+                'total_reps': 0,
+                'total_weight': 0,
+            }
+        exercises_data[exercise.id]['sets'].append(set_log)
+        exercises_data[exercise.id]['total_sets'] += 1
+        exercises_data[exercise.id]['total_reps'] += set_log.reps
+        exercises_data[exercise.id]['total_weight'] += set_log.weight * set_log.reps
+    
+    # Общая статистика
+    total_sets = sum(data['total_sets'] for data in exercises_data.values())
+    total_reps = sum(data['total_reps'] for data in exercises_data.values())
+    total_volume = sum(data['total_weight'] for data in exercises_data.values())
+    
+    return render(request, 'tracker/workout_detail.html', {
+        'workout': workout,
+        'exercises_data': exercises_data,
+        'total_sets': total_sets,
+        'total_reps': total_reps,
+        'total_volume': total_volume,
     })
 
 

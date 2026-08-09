@@ -1,9 +1,12 @@
 import json
 import random
 from django.contrib import messages
+from django.core.cache import cache
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from .models import Exercise, Routine, RoutineExercise, SetLog, WorkoutLog, Boss, HeroProfile, Achievement, HeroRune
+from .models import Exercise, Routine, RoutineExercise, SetLog, WorkoutLog, Boss, HeroProfile, Achievement, HeroRune, Recipe, RecipeIngredient, Artifact
+from .services import ArtifactService
 
 from datetime import date, timedelta
 from django.shortcuts import render
@@ -19,6 +22,9 @@ def home(request):
     workouts = WorkoutLog.objects.filter(routine__user=request.user, completed=True)
 
     hero, _ = HeroProfile.objects.get_or_create(user=request.user)
+    
+    # Рассчитываем процент стрика (максимум 7 дней для кругового индикатора)
+    streak_percentage = min(hero.current_streak * 100 / 7, 100)
 
     workout_dict = {}
     for w in workouts:
@@ -51,7 +57,6 @@ def home(request):
 
     # ЛОГИКА ШТРАФОВ ЗА ПРОПУСК ТРЕНИРОВКИ
     REQUIRED_DAYS = [0, 2, 4]  # 0=Пн, 2=Ср, 4=Пт
-    today = date(2026, 8, 5)
     yesterday = today - timedelta(days=1)
 
     # Ключ для сессии, чтобы не лечить босса при каждом обновлении страницы
@@ -73,12 +78,16 @@ def home(request):
         request.session[penalty_key] = True
     # ==========================================
 
+    # НЕ снимаем флаг is_new автоматически - пусть руны светятся пока пользователь сам не кликнет на них
+    # hero.runes.filter(is_new=True).update(is_new=False)
+
     return render(request, 'tracker/home.html', {
         'routines': routines,
         'week_days': week_days,
         'workouts': workouts,
         'boss': boss,
         'hero': hero,
+        'streak_percentage': streak_percentage,
     })
 
 
@@ -95,9 +104,17 @@ def start_workout(request, routine_id):
 
 def active_workout(request, workout_id):
     workout_log = get_object_or_404(WorkoutLog, id=workout_id)
+    
+    # Проверка прав доступа
+    if workout_log.user != request.user:
+        messages.error(request, "У вас нет доступа к этой тренировке")
+        return redirect('home')
 
     # Создаем пустой список, куда сложим данные по каждому упражнению
     exercises_data = []
+    
+    # Счетчик выполненных упражнений
+    completed_exercises = 0
 
     for exercise in workout_log.routine.exercises.order_by('routineexercise__order'):
         # 1. Ищем прошлые подходы
@@ -122,10 +139,21 @@ def active_workout(request, workout_id):
             'current_sets': current_sets,
             'last_date': last_workout.date if last_workout else None,
         })
+        
+        # Если есть текущие подходы, считаем упражнение выполненным
+        if current_sets:
+            completed_exercises += 1
+
+    # Рассчитываем прогресс тренировки
+    total_exercises = len(exercises_data)
+    workout_progress = int(completed_exercises * 100 / total_exercises) if total_exercises > 0 else 0
 
     return render(request, 'tracker/workout.html', {
         'workout_log': workout_log,
-        'exercises_data': exercises_data
+        'exercises_data': exercises_data,
+        'workout_progress': workout_progress,
+        'completed_exercises': completed_exercises,
+        'total_exercises': total_exercises
     })
 
 
@@ -138,6 +166,20 @@ def add_set(request, workout_id, exercise_id):
         # Получаем данные из формы (вес и повторения)
         weight = request.POST.get('weight')
         reps = request.POST.get('reps')
+
+        # Валидация данных
+        try:
+            weight = float(weight) if weight else 0
+            reps = int(reps) if reps else 0
+            if weight < 0 or reps < 0:
+                messages.error(request, "Вес и количество повторений не могут быть отрицательными")
+                return redirect('active_workout', workout_id=workout_id)
+            if reps == 0:
+                messages.error(request, "Количество повторений должно быть больше 0")
+                return redirect('active_workout', workout_id=workout_id)
+        except (ValueError, TypeError):
+            messages.error(request, "Введите корректные числовые значения для веса и повторений")
+            return redirect('active_workout', workout_id=workout_id)
 
         # Сохраняем подход в базу данных
         SetLog.objects.create(
@@ -154,11 +196,34 @@ def add_set(request, workout_id, exercise_id):
 def edit_set(request, set_id):
     # Находим нужный подход в базе
     set_log = get_object_or_404(SetLog, id=set_id)
+    
+    # Проверка прав доступа
+    if set_log.workout_log.user != request.user:
+        messages.error(request, "У вас нет доступа к этому подходу")
+        return redirect('home')
 
     if request.method == "POST":
+        # Получаем данные из формы
+        weight = request.POST.get('weight')
+        reps = request.POST.get('reps')
+
+        # Валидация данных
+        try:
+            weight = float(weight) if weight else 0
+            reps = int(reps) if reps else 0
+            if weight < 0 or reps < 0:
+                messages.error(request, "Вес и количество повторений не могут быть отрицательными")
+                return render(request, 'tracker/edit_set.html', {'set_log': set_log})
+            if reps == 0:
+                messages.error(request, "Количество повторений должно быть больше 0")
+                return render(request, 'tracker/edit_set.html', {'set_log': set_log})
+        except (ValueError, TypeError):
+            messages.error(request, "Введите корректные числовые значения для веса и повторений")
+            return render(request, 'tracker/edit_set.html', {'set_log': set_log})
+
         # Если форма отправлена, обновляем данные
-        set_log.weight = request.POST.get('weight')
-        set_log.reps = request.POST.get('reps')
+        set_log.weight = weight
+        set_log.reps = reps
         set_log.save()
 
         # Возвращаемся обратно на экран тренировки
@@ -171,6 +236,12 @@ def edit_set(request, set_id):
 def delete_set(request, set_id):
     # Находим подход
     set_log = get_object_or_404(SetLog, id=set_id)
+    
+    # Проверка прав доступа
+    if set_log.workout_log.user != request.user:
+        messages.error(request, "У вас нет доступа к этому подходу")
+        return redirect('home')
+    
     # Запоминаем ID тренировки, чтобы знать, куда возвращаться
     workout_id = set_log.workout_log.id
 
@@ -250,6 +321,8 @@ def update_streak_and_achievements(hero_profile):
     hero_rune.quantity += 1
     # Если руна уже была, на всякий случай обновляем её описание на самое свежее из списка
     hero_rune.description = desc
+    # Устанавливаем флаг is_new при получении новой руны (даже при стакании)
+    hero_rune.is_new = True
     hero_rune.save()
 
     # Добавляем в сообщение информацию о выпавшей руне
@@ -321,20 +394,23 @@ def finish_workout(request, workout_id):
             elif current_set.weight == prev_best_set.weight and current_set.reps > prev_best_set.reps:
                 bonus_xp += 25  # Бонус за рост выносливости (повторений)
 
-    # 3. Начисляем опыт и сохраняем
-    total_xp_gained = base_xp + bonus_xp
+    # 3. Используем сервис для расчета бонусов от артефактов
+    artifact_bonuses = ArtifactService.calculate_artifact_bonuses(hero)
+
+    # 3.5 Начисляем опыт с учетом бонусов от артефактов
+    total_xp_gained = ArtifactService.apply_xp_bonus(base_xp + bonus_xp, hero)
+    
     hero.experience += total_xp_gained
     hero.save()
 
-    # 2. Получаем Босса
+    # 4. Получаем Босса
     boss = Boss.objects.get(user=request.user)
 
-    # 3. Базовый урон
+    # 5. Базовый урон
     base_damage = 50
     bonus_damage = 0
 
-    # 4. Расчет бонуса за прогресс весов (Критический урон)
-    current_sets = SetLog.objects.filter(workout_log=workout)
+    # 6. Расчет бонуса за прогресс весов (Критический урон) - используем уже полученный current_sets
 
     # Находим максимальный вес для каждого упражнения на этой тренировке
     current_max_weights = {}
@@ -358,6 +434,7 @@ def finish_workout(request, workout_id):
                 bonus_damage += 10
 
     total_damage = base_damage + bonus_damage
+    total_damage = ArtifactService.apply_damage_bonus(total_damage, hero)
 
     # 5. Наносим урон боссу
     boss.current_hp -= total_damage
@@ -366,6 +443,8 @@ def finish_workout(request, workout_id):
     boss_message = f" ⚔️ Ты нанесла {total_damage} урона боссу {boss.name}!"
     if bonus_damage > 0:
         boss_message += f" (Из них {bonus_damage} — критический урон за новые рекорды!)"
+    if artifact_bonuses['damage_boost'] > 0:
+        boss_message += f" (Бонус артефактов: +{artifact_bonuses['damage_boost']} урона)"
 
     # 6. Проверка на смерть босса
     if boss.current_hp <= 0:
@@ -392,7 +471,11 @@ def finish_workout(request, workout_id):
     styled_quote = f"<span style='font-style: italic; font-size: 1.1rem; color: #f8f9fa;'>{quote}</span>"
 
     # 1. Формируем чистую строку про полученный опыт
-    xp_message = f"✨ Получено {total_xp_gained} XP (из них {bonus_xp} за рекорды)."
+    xp_message = f"✨ Получено {total_xp_gained} XP (из них {bonus_xp} за рекорды"
+    if artifact_bonuses['xp_boost'] > 0:
+        artifact_xp_bonus = int((base_xp + bonus_xp) * artifact_bonuses['xp_boost'] / 100)
+        xp_message += f", +{artifact_xp_bonus} бонус артефактов"
+    xp_message += ")."
 
     # 2. Собираем текст
     final_message = mark_safe(
@@ -404,3 +487,88 @@ def finish_workout(request, workout_id):
 
     messages.success(request, final_message)
     return redirect('home')
+
+
+def forge(request):
+    """Кузница - страница для крафта артефактов из рун"""
+    hero = get_object_or_404(HeroProfile, user=request.user)
+    
+    # Кэширование рецептов на 1 час
+    recipes = cache.get('forge_recipes')
+    if recipes is None:
+        recipes = list(Recipe.objects.prefetch_related('ingredients').all())
+        cache.set('forge_recipes', recipes, 3600)
+    
+    artifacts = hero.artifacts.filter(is_active=True)
+    
+    # Снимаем флаг is_new с артефактов при просмотре кузницы
+    artifacts.filter(is_new=True).update(is_new=False)
+    
+    # Проверяем, какие рецепты доступны (есть ли нужные руны)
+    available_recipes = []
+    for recipe in recipes:
+        can_craft = True
+        missing_ingredients = []
+        
+        for ingredient in recipe.ingredients.all():
+            hero_rune = hero.runes.filter(name=ingredient.rune_name).first()
+            if not hero_rune or hero_rune.quantity < ingredient.quantity_required:
+                can_craft = False
+                missing_ingredients.append({
+                    'rune_name': ingredient.rune_name,
+                    'have': hero_rune.quantity if hero_rune else 0,
+                    'need': ingredient.quantity_required
+                })
+        
+        available_recipes.append({
+            'recipe': recipe,
+            'can_craft': can_craft,
+            'missing_ingredients': missing_ingredients
+        })
+    
+    return render(request, 'tracker/forge.html', {
+        'hero': hero,
+        'available_recipes': available_recipes,
+        'artifacts': artifacts
+    })
+
+
+@transaction.atomic
+def craft_artifact(request, recipe_id):
+    """Обработка крафта артефакта с транзакцией"""
+    if request.method != 'POST':
+        return redirect('forge')
+    
+    hero = get_object_or_404(HeroProfile, user=request.user)
+    recipe = get_object_or_404(Recipe, id=recipe_id)
+    
+    # Проверяем наличие всех ингредиентов
+    for ingredient in recipe.ingredients.all():
+        hero_rune = hero.runes.filter(name=ingredient.rune_name).first()
+        if not hero_rune or hero_rune.quantity < ingredient.quantity_required:
+            messages.error(request, f"Недостаточно рун: {ingredient.rune_name}")
+            return redirect('forge')
+    
+    # Списываем руны
+    for ingredient in recipe.ingredients.all():
+        hero_rune = hero.runes.get(name=ingredient.rune_name)
+        hero_rune.quantity -= ingredient.quantity_required
+        if hero_rune.quantity == 0:
+            hero_rune.delete()
+        else:
+            hero_rune.save()
+    
+    # Создаем артефакт
+    artifact = Artifact.objects.create(
+        hero=hero,
+        recipe=recipe,
+        name=recipe.artifact_name,
+        icon=recipe.artifact_icon,
+        description=recipe.artifact_description,
+        effect=recipe.artifact_effect,
+        effect_type=recipe.effect_type,
+        effect_value=recipe.effect_value
+    )
+    
+    messages.success(request, f"🔥 Артефакт {recipe.artifact_icon} {recipe.artifact_name} успешно создан!")
+    return redirect('forge')

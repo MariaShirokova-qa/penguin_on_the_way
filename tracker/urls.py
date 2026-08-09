@@ -10,4 +10,6 @@ urlpatterns = [
     path('set/<int:set_id>/delete/', views.delete_set, name='delete_set'),
     path('routine/<int:routine_id>/reorder/', views.update_exercise_order, name='reorder_exercises'),
     path('workout/<int:workout_id>/finish/', views.finish_workout, name='finish_workout'),
+    path('forge/', views.forge, name='forge'),
+    path('forge/craft/<int:recipe_id>/', views.craft_artifact, name='craft_artifact'),
 ]

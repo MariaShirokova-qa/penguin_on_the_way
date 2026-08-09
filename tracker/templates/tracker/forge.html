@@ -1,0 +1,132 @@
+{% extends 'tracker/base.html' %}
+
+{% block title %}SkjaldFit | Кузница{% endblock %}
+
+{% block extra_css %}
+    .recipe-card {
+        background-color: rgba(255,255,255,0.6);
+        border-left: 4px solid var(--brown, #7f4f24);
+        transition: transform 0.2s;
+    }
+
+    .recipe-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .artifact-card {
+        background-color: var(--gunmetal, #2a3439);
+        border: 1px solid var(--brown, #7f4f24);
+        color: var(--sand, #e2e1d8);
+    }
+
+    .ingredient-tag {
+        background-color: var(--khaki);
+        color: var(--sand);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .ingredient-tag.missing {
+        background-color: var(--crimson);
+        color: var(--sand);
+    }
+{% endblock %}
+
+{% block content %}
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="viking-reward text-center mb-4" style="color: var(--gunmetal);">⚒️ Кузница Древних</h2>
+                <p class="text-center text-muted">Здесь ты можешь объединять руны для создания мощных артефактов</p>
+            </div>
+        </div>
+
+        <!-- Секция созданных артефактов -->
+        {% if artifacts %}
+        <div class="card shadow-sm border-0 mb-4" style="border-top: 4px solid var(--brown);">
+            <div class="card-body">
+                <h4 class="fw-bold mb-3" style="color: var(--gunmetal);">🏆 Ваши артефакты</h4>
+                <div class="row g-3">
+                    {% for artifact in artifacts %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="artifact-card p-3 rounded shadow-sm {% if artifact.is_new %}artifact-new{% endif %}">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="fs-3 me-3">{{ artifact.icon }}</span>
+                                <div>
+                                    <div class="viking-reward" style="font-size: 1.2rem;">{{ artifact.name }}</div>
+                                    <small class="opacity-75">{{ artifact.effect }}</small>
+                                </div>
+                            </div>
+                            <div style="font-size: 0.85rem; opacity: 0.9;">{{ artifact.description }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Секция рецептов -->
+        <div class="card shadow-sm border-0 mb-4" style="border-top: 4px solid var(--khaki);">
+            <div class="card-body">
+                <h4 class="fw-bold mb-3" style="color: var(--gunmetal);">📜 Доступные рецепты</h4>
+                
+                {% if available_recipes %}
+                <div class="row g-3">
+                    {% for item in available_recipes %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="recipe-card p-3 rounded shadow-sm">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="fs-3 me-3">{{ item.recipe.artifact_icon }}</span>
+                                <div>
+                                    <div class="viking-reward" style="font-size: 1.1rem;">{{ item.recipe.artifact_name }}</div>
+                                    <small class="text-muted">{{ item.recipe.name }}</small>
+                                </div>
+                            </div>
+                            
+                            <p style="font-size: 0.9rem; color: #444;">{{ item.recipe.artifact_description }}</p>
+                            
+                            <div class="mb-2">
+                                <small class="fw-bold" style="color: var(--gunmetal);">Требуемые руны:</small>
+                                <div class="mt-1">
+                                    {% for ingredient in item.recipe.ingredients.all %}
+                                        {% with missing=item.missing_ingredients %}
+                                            <span class="ingredient-tag {% for m in missing %}{% if m.rune_name == ingredient.rune_name %}missing{% endif %}{% endfor %}">
+                                                {{ ingredient.rune_name }} x{{ ingredient.quantity_required }}
+                                            </span>
+                                        {% endwith %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% if item.missing_ingredients %}
+                                <div class="small mb-2" style="color: var(--crimson);">
+                                    ❌ Не хватает:
+                                    {% for missing in item.missing_ingredients %}
+                                        {{ missing.rune_name }} (есть {{ missing.have }}, нужно {{ missing.need }})
+                                    {% endfor %}
+                                </div>
+                                <button class="btn btn-secondary w-100" disabled>Недостаточно рун</button>
+                            {% else %}
+                                <form method="post" action="{% url 'craft_artifact' item.recipe.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-khaki w-100 fw-bold">🔥 Создать артефакт</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                    <div class="text-center text-muted fst-italic py-4">
+                        Рецепты пока не добавлены. Обратитесь к админу для создания рецептов крафта.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Кнопка возврата -->
+        <div class="text-center mb-4">
+            <a href="{% url 'home' %}" class="btn btn-outline-secondary">← Вернуться в крепость</a>
+        {% endblock %}
